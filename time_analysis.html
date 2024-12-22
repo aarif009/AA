@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Time Analysis Tracker</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f4f8fb;
+            margin: 0;
+            padding: 0;
+            color: #333;
+        }
+
+        header {
+            background-color: #4caf50;
+            color: white;
+            padding: 15px;
+            text-align: center;
+        }
+
+        .container {
+            max-width: 900px;
+            margin: auto;
+            padding: 20px;
+            background-color: white;
+            border-radius: 8px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+        }
+
+        .calendar {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+
+        .day {
+            background-color: #eaf1f8;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            text-align: center;
+            padding: 10px;
+            cursor: pointer;
+        }
+
+        .day:hover {
+            background-color: #d1e7f3;
+        }
+
+        .day.red {
+            background-color: #f44336;
+            color: white;
+        }
+
+        .day.cyan {
+            background-color: #00bcd4;
+            color: white;
+        }
+
+        .day.green {
+            background-color: #4caf50;
+            color: white;
+        }
+
+        .input-section {
+            margin-top: 20px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+
+        input[type="number"], button {
+            padding: 10px;
+            font-size: 16px;
+            width: 100%;
+            margin-bottom: 15px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+
+        button {
+            background-color: #4caf50;
+            color: white;
+            cursor: pointer;
+        }
+
+        button:hover {
+            background-color: #45a049;
+        }
+
+        .results {
+            margin-top: 30px;
+        }
+
+        .footer {
+            text-align: center;
+            margin-top: 30px;
+            font-size: 14px;
+            color: #777;
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <h1>Time Analysis Tracker</h1>
+    </header>
+
+    <div class="container">
+        <h2>Daily Calendar: December 2024</h2>
+        <div class="calendar" id="calendar"></div>
+
+        <div class="input-section">
+            <h3>Log Daily Study Hours</h3>
+            <label for="study-hours">Enter Study Hours:</label>
+            <input type="number" id="study-hours" min="0" max="24" placeholder="e.g., 5">
+            <button onclick="saveStudyHours()">Save</button>
+        </div>
+
+        <div class="results">
+            <h3>Previous Month's Analysis</h3>
+            <button onclick="viewAnalysis()">View Analysis</button>
+            <button onclick="downloadPDF()">Download as PDF</button>
+            <div id="analysis-result"></div>
+        </div>
+    </div>
+
+    <footer class="footer">
+        <p>&copy; 2024 Time Analysis Tracker</p>
+    </footer>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.4.0/jspdf.umd.min.js"></script>
+    <script>
+        const calendarElement = document.getElementById('calendar');
+        const studyData = JSON.parse(localStorage.getItem('studyData')) || {};
+
+        const today = new Date();
+        const currentMonth = 11; // December is month 11 (0-indexed)
+        const currentYear = 2024;
+
+        function createCalendar() {
+            const daysInMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
+            for (let day = 1; day <= daysInMonth; day++) {
+                const dateKey = `${currentYear}-${currentMonth + 1}-${day}`;
+                const dayElement = document.createElement('div');
+                dayElement.className = 'day';
+                dayElement.textContent = day;
+
+                if (studyData[dateKey]) {
+                    if (studyData[dateKey] <= 5) {
+                        dayElement.classList.add('red');
+                    } else if (studyData[dateKey] <= 7) {
+                        dayElement.classList.add('cyan');
+                    } else {
+                        dayElement.classList.add('green');
+                    }
+                }
+
+                dayElement.onclick = () => logDay(dateKey);
+                calendarElement.appendChild(dayElement);
+            }
+        }
+
+        function logDay(dateKey) {
+            const hours = prompt("Enter study hours for " + dateKey, studyData[dateKey] || "");
+            if (hours !== null) {
+                studyData[dateKey] = parseFloat(hours);
+                localStorage.setItem('studyData', JSON.stringify(studyData));
+                alert("Saved study hours: " + hours);
+                location.reload();
+            }
+        }
+
+        function saveStudyHours() {
+            const todayKey = `${currentYear}-${currentMonth + 1}-${today.getDate()}`;
+            const hours = document.getElementById('study-hours').value;
+            if (hours) {
+                studyData[todayKey] = parseFloat(hours);
+                localStorage.setItem('studyData', JSON.stringify(studyData));
+                alert("Study hours saved for today: " + hours);
+                location.reload();
+            } else {
+                alert("Please enter valid hours.");
+            }
+        }
+
+        function viewAnalysis() {
+            const resultDiv = document.getElementById('analysis-result');
+            resultDiv.innerHTML = '<h4>Study Hours Per Day</h4>';
+
+            Object.keys(studyData).forEach(date => {
+                resultDiv.innerHTML += `<p>${date}: ${studyData[date]} hours</p>`;
+            });
+        }
+
+        async function downloadPDF() {
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF();
+
+            doc.text("Time Analysis Tracker", 10, 10);
+            doc.text("Study Hours Report for December 2024", 10, 20);
+
+            let yOffset = 30;
+            Object.keys(studyData).forEach(date => {
+                doc.text(`${date}: ${studyData[date]} hours`, 10, yOffset);
+                yOffset += 10;
+                if (yOffset > 280) {
+                    doc.addPage();
+                    yOffset = 10;
+                }
+            });
+
+            doc.save("study_analysis_december_2024.pdf");
+        }
+
+        createCalendar();
+    </script>
+</body>
+</html>
